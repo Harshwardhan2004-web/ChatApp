@@ -6,6 +6,7 @@ import { logout, setOnlineUser, setSocketConnection, setUser } from '../redux/us
 import Sidebar from '../components/Sidebar'
 import logo from '../assets/logo.png'
 import io from 'socket.io-client'
+import toast from 'react-hot-toast'
 
 const Home = () => {
   const user = useSelector(state => state.user)
@@ -13,58 +14,76 @@ const Home = () => {
   const navigate = useNavigate()
   const location = useLocation()
 
-  console.log('user',user)
-  const fetchUserDetails = async()=>{
+  const fetchUserDetails = async() => {
     try {
-        const URL = `${process.env.REACT_APP_BACKEND_URL}/api/user-details`
-        const response = await axios({
-          url : URL,
-          withCredentials : true
-        })
+      const URL = `${process.env.REACT_APP_BACKEND_URL}/api/user-details`
+      const response = await axios({
+        url: URL,
+        withCredentials: true
+      })
 
-        const userData = response.data.data
-        if (!userData) {
-          dispatch(logout())
-          navigate("/email")
-          return
-        }
-
-        dispatch(setUser(userData))
-        if (userData.logout) {
-          dispatch(logout())
-          navigate("/email")
-        }
-    } catch (error) {
-        console.log("error",error)
+      const userData = response.data.data
+      if (!userData) {
         dispatch(logout())
         navigate("/email")
+        return
+      }
+
+      dispatch(setUser(userData))
+      if (userData.logout) {
+        dispatch(logout())
+        navigate("/email")
+      }
+    } catch (error) {
+      console.error("Connection error:", error)
+      if (!error.response) {
+        toast.error('Unable to connect to server. Please check if the server is running.')
+      } else {
+        toast.error(error.response?.data?.message || 'Failed to fetch user details')
+      }
+      dispatch(logout())
+      navigate("/email")
     }
   }
 
-  useEffect(()=>{
+  useEffect(() => {
     fetchUserDetails()
-  },[])
+  }, [])
 
-  /***socket connection */
-  useEffect(()=>{
-    const socketConnection = io(process.env.REACT_APP_BACKEND_URL,{
-      auth : {
-        token : localStorage.getItem('token')
-      },
-    })
+  useEffect(() => {
+    try {
+      const socketConnection = io(process.env.REACT_APP_BACKEND_URL, {
+        auth: {
+          token: localStorage.getItem('token')
+        },
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000
+      })
 
-    socketConnection.on('onlineUser',(data)=>{
-      console.log(data)
-      dispatch(setOnlineUser(data))
-    })
+      socketConnection.on('connect_error', (error) => {
+        console.error('Socket connection error:', error)
+        toast.error('Unable to establish real-time connection')
+      })
 
-    dispatch(setSocketConnection(socketConnection))
+      socketConnection.on('onlineUser', (data) => {
+        dispatch(setOnlineUser(data))
+      })
 
-    return ()=>{
-      socketConnection.disconnect()
+      socketConnection.on('connect', () => {
+        console.log('Socket connected successfully')
+      })
+
+      dispatch(setSocketConnection(socketConnection))
+
+      return () => {
+        socketConnection.disconnect()
+      }
+    } catch (error) {
+      console.error('Socket initialization error:', error)
+      toast.error('Failed to initialize real-time connection')
     }
-  },[])
-
+  }, [])
 
   const basePath = location.pathname === '/'
   return (
