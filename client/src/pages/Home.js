@@ -22,15 +22,22 @@ const Home = () => {
           withCredentials : true
         })
 
-        dispatch(setUser(response.data.data))
-
-        if(response.data.data.logout){
-            dispatch(logout())
-            navigate("/email")
+        const userData = response.data.data
+        if (!userData) {
+          dispatch(logout())
+          navigate("/email")
+          return
         }
-        console.log("current user Details",response)
+
+        dispatch(setUser(userData))
+        if (userData.logout) {
+          dispatch(logout())
+          navigate("/email")
+        }
     } catch (error) {
         console.log("error",error)
+        dispatch(logout())
+        navigate("/email")
     }
   }
 

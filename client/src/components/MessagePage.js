@@ -187,13 +187,15 @@ const MessagePage = () => {
                   <div className='flex flex-col gap-2 py-2 mx-2' ref={currentMessage}>
                     {
                       allMessage.map((msg,index)=>{
+                        const isMyMessage = user._id === msg?.msgByUserId;
                         return(
-                          <div className={` p-1 py-1 rounded w-fit max-w-[280px] md:max-w-sm lg:max-w-md ${user._id === msg?.msgByUserId ? "ml-auto bg-teal-100" : "bg-white"}`}>
+                          <div key={msg._id || `${msg.createdAt}-${index}`} className={` p-1 py-1 rounded w-fit max-w-[280px] md:max-w-sm lg:max-w-md ${isMyMessage ? "ml-auto bg-teal-100" : "bg-white"}`}>
                             <div className='w-full relative'>
                               {
                                 msg?.imageUrl && (
                                   <img 
                                     src={msg?.imageUrl}
+                                    alt={`Message image from ${isMyMessage ? 'you' : dataUser?.name}`}
                                     className='w-full h-full object-scale-down'
                                   />
                                 )
@@ -204,6 +206,7 @@ const MessagePage = () => {
                                     src={msg.videoUrl}
                                     className='w-full h-full object-scale-down'
                                     controls
+                                    title={`Message video from ${isMyMessage ? 'you' : dataUser?.name}`}
                                   />
                                 )
                               }
@@ -227,7 +230,7 @@ const MessagePage = () => {
                         <div className='bg-white p-3'>
                             <img
                               src={message.imageUrl}
-                              alt='uploadImage'
+                              alt='Image to be sent'
                               className='aspect-square w-full h-full max-w-sm m-2 object-scale-down'
                             />
                         </div>
@@ -249,6 +252,7 @@ const MessagePage = () => {
                               controls
                               muted
                               autoPlay
+                              title="Video to be sent"
                             />
                         </div>
                       </div>

@@ -31,10 +31,16 @@ io.on('connection',async(socket)=>{
 
     //current user details 
     const user = await getUserDetailsFromToken(token)
+    
+    if (!user || !user._id) {
+        console.log("Invalid user token or user not found")
+        socket.emit('auth_error', { message: 'Authentication failed' })
+        return
+    }
 
     //create a room
-    socket.join(user?._id.toString())
-    onlineUser.add(user?._id?.toString())
+    socket.join(user._id.toString())
+    onlineUser.add(user._id.toString())
 
     io.emit('onlineUser',Array.from(onlineUser))
 
