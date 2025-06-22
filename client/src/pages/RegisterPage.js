@@ -69,18 +69,21 @@ const RegisterPage = () => {
       toast.error('Name is required')
       return false
     }
-    if (!data.email.trim()) {
-      toast.error('Email is required')
+    
+    // Email validation: only lowercase allowed
+    const emailRegex = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/
+    if (!emailRegex.test(data.email)) {
+      toast.error('Please use lowercase letters only in email')
       return false
     }
-    if (!data.password) {
-      toast.error('Password is required')
+
+    // Password validation: require letters, numbers, and special characters
+    const passwordRegex = /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/
+    if (!passwordRegex.test(data.password)) {
+      toast.error('Password must be at least 8 characters long and include letters, numbers, and special characters')
       return false
     }
-    if (data.password.length < 6) {
-      toast.error('Password must be at least 6 characters long')
-      return false
-    }
+    
     return true
   }
 

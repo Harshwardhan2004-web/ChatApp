@@ -1,10 +1,11 @@
-import React from 'react'
+import React, { useState } from 'react'
 import Avatar from './Avatar'
 import { useSelector } from 'react-redux'
 import toast from 'react-hot-toast'
 
 const MessageRequest = ({ request, onAction }) => {
     const socketConnection = useSelector(state => state?.user?.socketConnection)
+    const [isProcessing, setIsProcessing] = useState(false)
 
     const handleAction = (action) => {
         if (!socketConnection) {
@@ -12,14 +13,24 @@ const MessageRequest = ({ request, onAction }) => {
             return
         }
 
+        if (isProcessing) {
+            return;
+        }
+
+        setIsProcessing(true)
+        toast.loading(action === 'accept' ? 'Accepting request...' : 'Declining request...')
+
         socketConnection.emit('handle_message_request', {
             requestId: request._id,
             action
+        }, () => {
+            toast.dismiss()
+            toast.success(action === 'accept' ? 'Message request accepted' : 'Message request declined')
+            setIsProcessing(false)
+            if (onAction) {
+                onAction(action)
+            }
         })
-        
-        if (onAction) {
-            onAction(action)
-        }
     }
 
     return (
@@ -49,13 +60,15 @@ const MessageRequest = ({ request, onAction }) => {
             <div className='flex justify-end gap-2 mt-3'>
                 <button 
                     onClick={() => handleAction('reject')}
-                    className='px-4 py-1 text-sm border border-red-500 text-red-500 rounded hover:bg-red-50'
+                    disabled={isProcessing}
+                    className='px-4 py-1 text-sm border border-red-500 text-red-500 rounded hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed'
                 >
                     Decline
                 </button>
                 <button 
                     onClick={() => handleAction('accept')}
-                    className='px-4 py-1 text-sm bg-primary text-white rounded hover:bg-secondary'
+                    disabled={isProcessing}
+                    className='px-4 py-1 text-sm bg-primary text-white rounded hover:bg-secondary disabled:opacity-50 disabled:cursor-not-allowed'
                 >
                     Accept
                 </button>

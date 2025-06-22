@@ -13,14 +13,14 @@ const messageSchema = new mongoose.Schema({
         type : String,
         default : ""
     },
+    msgByUserId : {
+        type : mongoose.Schema.Types.ObjectId,
+        ref : 'User',
+        required : true
+    },
     seen : {
         type : Boolean,
         default : false
-    },
-    msgByUserId : {
-        type : mongoose.Schema.ObjectId,
-        required : true,
-        ref : 'User'
     }
 },{
     timestamps : true
@@ -28,18 +28,18 @@ const messageSchema = new mongoose.Schema({
 
 const conversationSchema = new mongoose.Schema({
     sender : {
-        type : mongoose.Schema.ObjectId,
-        required : true,
-        ref : 'User'
+        type : mongoose.Schema.Types.ObjectId,
+        ref : 'User',
+        required : true
     },
     receiver : {
-        type : mongoose.Schema.ObjectId,
-        required : true,
-        ref : 'User'
+        type : mongoose.Schema.Types.ObjectId,
+        ref : 'User',
+        required : true
     },
     messages : [
         {
-            type : mongoose.Schema.ObjectId,
+            type : mongoose.Schema.Types.ObjectId,
             ref : 'Message'
         }
     ]

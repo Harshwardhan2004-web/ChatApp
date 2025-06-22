@@ -13,11 +13,20 @@ async function registerUser(request, response) {
             })
         }
 
-        // Validate email format
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+        // Validate email format (lowercase only)
+        const emailRegex = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/
         if (!emailRegex.test(email)) {
             return response.status(400).json({
-                message: "Invalid email format",
+                message: "Invalid email format. Please use lowercase letters only",
+                error: true,
+            })
+        }
+
+        // Validate password (letters, numbers, and special characters)
+        const passwordRegex = /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/
+        if (!passwordRegex.test(password)) {
+            return response.status(400).json({
+                message: "Password must be at least 8 characters long and include letters, numbers, and special characters",
                 error: true,
             })
         }

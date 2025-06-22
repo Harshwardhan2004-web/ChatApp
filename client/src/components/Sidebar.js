@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { IoChatbubbleEllipses } from "react-icons/io5";
 import { FaUserPlus } from "react-icons/fa";
 import { NavLink, useNavigate } from 'react-router-dom';
@@ -15,6 +15,7 @@ import { logout } from '../redux/userSlice';
 import LogoutModal from './LogoutModal';
 import MessageRequest from './MessageRequest';
 import { IoNotifications } from "react-icons/io5";
+import toast from 'react-hot-toast';
 
 const Sidebar = () => {
     const user = useSelector(state => state?.user)
@@ -24,56 +25,93 @@ const Sidebar = () => {
     const [showLogoutModal, setShowLogoutModal] = useState(false)
     const [messageRequests, setMessageRequests] = useState([])
     const [showRequests, setShowRequests] = useState(false)
+    const notificationAudio = useRef(null)
     const socketConnection = useSelector(state => state?.user?.socketConnection)
     const dispatch = useDispatch()
     const navigate = useNavigate()
 
-    useEffect(()=>{
-        if(socketConnection){
-            socketConnection.emit('sidebar',user._id)
-            socketConnection.emit('get_message_requests')
+    useEffect(() => {
+        // Initialize audio reference
+        notificationAudio.current = document.getElementById('notification-sound')
+    }, [])
+
+    useEffect(() => {
+        if(socketConnection && user?._id) {
+            // Request initial conversation list
+            socketConnection.emit('sidebar', user._id);
+            socketConnection.emit('get_message_requests');
             
-            socketConnection.on('conversation',(data)=>{
-                const conversationUserData = data.map((conversationUser)=>{
-                    if(conversationUser?.sender?._id === conversationUser?.receiver?._id){
-                        return{
-                            ...conversationUser,
-                            userDetails : conversationUser?.sender
+            const updateSidebar = () => {
+                socketConnection.emit('sidebar', user._id);
+            };
+            
+            socketConnection.on('conversation', (data) => {
+                if (!Array.isArray(data)) return;
+                
+                const uniqueUserMap = new Map();
+                
+                data.forEach(conv => {
+                    if (conv && conv.sender && conv.receiver) {
+                        const otherUser = conv.sender._id.toString() === user._id.toString() 
+                            ? conv.receiver 
+                            : conv.sender;
+                            
+                        const userData = {
+                            _id: conv._id,
+                            userDetails: {
+                                _id: otherUser._id,
+                                name: otherUser.name || 'Deleted User',
+                                profile_pic: otherUser.profile_pic || '',
+                                online: otherUser.online || false
+                            },
+                            lastMsg: conv.lastMsg,
+                            unseenMsg: conv.unseenMsg || 0,
+                            lastActivity: conv.updatedAt || conv.lastMsg?.createdAt || new Date()
+                        };
+                        
+                        const userId = otherUser._id.toString();
+                        if (!uniqueUserMap.has(userId) || 
+                            new Date(userData.lastActivity) > new Date(uniqueUserMap.get(userId).lastActivity)) {
+                            uniqueUserMap.set(userId, userData);
                         }
                     }
-                    else if(conversationUser?.receiver?._id !== user?._id){
-                        return{
-                            ...conversationUser,
-                            userDetails : conversationUser.receiver
-                        }
-                    }else{
-                        return{
-                            ...conversationUser,
-                            userDetails : conversationUser.sender
-                        }
-                    }
-                })
+                });
 
-                setAllUser(conversationUserData)
-            })
+                const conversationUserData = Array.from(uniqueUserMap.values())
+                    .sort((a, b) => new Date(b.lastActivity) - new Date(a.lastActivity));
 
+                setAllUser(conversationUserData);
+            });
+
+            // Update sidebar on various events
+            socketConnection.on('message', updateSidebar);
+            socketConnection.on('block_status_updated', updateSidebar);
+            socketConnection.on('message_request_handled', updateSidebar);
+
+            // Handle message requests
             socketConnection.on('message_requests', (requests) => {
-                setMessageRequests(requests)
-            })
+                setMessageRequests(requests || []);
+            });
 
             socketConnection.on('new_message_request', ({ request }) => {
-                setMessageRequests(prev => [...prev, request])
-            })
-        }
+                setMessageRequests(prev => [...prev, request]);
+                if (notificationAudio.current) {
+                    notificationAudio.current.play().catch(err => console.error('Error playing sound:', err));
+                }
+                toast.success(`New message request from ${request.sender.name}`);
+            });
 
-        return () => {
-            if (socketConnection) {
-                socketConnection.off('conversation')
-                socketConnection.off('message_requests')
-                socketConnection.off('new_message_request')
-            }
+            // Clean up event listeners
+            return () => {
+                socketConnection.off('conversation');
+                socketConnection.off('message');
+                socketConnection.off('block_status_updated');
+                socketConnection.off('message_requests');
+                socketConnection.off('new_message_request');
+                socketConnection.off('message_request_handled');
+            };
         }
-    },[socketConnection,user])
+    }, [socketConnection, user?._id])
 
     const handleLogoutClick = () => {
         setShowLogoutModal(true);
@@ -187,6 +225,7 @@ const Sidebar = () => {
                                         name={conv?.userDetails?.name}
                                         width={40}
                                         height={40}
+                                        userId={conv?.userDetails?._id}
                                     />    
                                 </div>
                                 <div>
@@ -237,6 +276,8 @@ const Sidebar = () => {
                 onClose={() => setShowLogoutModal(false)}
                 onLogout={handleLogoutConfirm}
             />
+
+            <audio id="notification-sound" src="/notification.mp3" preload="auto" style={{ display: 'none' }} />
     </div>
   )
 }

@@ -1,15 +1,17 @@
 import React, { useState } from 'react'
 import { IoClose } from "react-icons/io5";
+import { PiUserCircle } from "react-icons/pi";
 import { Link, useNavigate } from 'react-router-dom';
 import uploadFile from '../helpers/uploadFile';
 import axios from 'axios'
 import toast from 'react-hot-toast';
-import { PiUserCircle } from "react-icons/pi";
+import Loading from '../components/Loading';
 
 const CheckEmailPage = () => {
   const [data,setData] = useState({
     email : "",
   })
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate()
 
   const handleOnChange = (e)=>{
@@ -27,12 +29,31 @@ const CheckEmailPage = () => {
     e.preventDefault()
     e.stopPropagation()
 
-    const URL = `${process.env.REACT_APP_BACKEND_URL}/api/email`
+    if (!data.email) {
+      toast.error('Please enter your email');
+      return;
+    }
+
+    setLoading(true);
+    const loadingToast = toast.loading('Checking email...');
 
     try {
-        const response = await axios.post(URL,data)
+        const URL = `${process.env.REACT_APP_BACKEND_URL}/api/email`
+        const response = await axios({
+          method: 'post',
+          url: URL,
+          data: data,
+          withCredentials: true,
+          timeout: 10000,
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          validateStatus: function (status) {
+            return status >= 200 && status < 500
+          }
+        });
 
-        toast.success(response.data.message)
+        toast.dismiss(loadingToast);
 
         if(response.data.success){
             setData({
@@ -41,9 +62,27 @@ const CheckEmailPage = () => {
             navigate('/password',{
               state : response?.data?.data
             })
+            toast.success(response.data.message)
+        } else {
+            toast.error(response.data.message || 'Email verification failed')
         }
     } catch (error) {
-        toast.error(error?.response?.data?.message)
+        toast.dismiss(loadingToast);
+        console.error('Connection error:', error);
+        
+        if (error.code === 'ECONNABORTED') {
+            toast.error('Request timed out. Please try again.');
+        } else if (!error.response) {
+            toast.error('Unable to connect to server. Please check if the server is running.');
+        } else if (error.response.status === 404) {
+            toast.error('Server endpoint not found. Please check server URL.');
+        } else if (error.response.status >= 500) {
+            toast.error('Internal server error. Please try again later.');
+        } else {
+            toast.error(error.response?.data?.message || 'An error occurred');
+        }
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -73,14 +112,24 @@ const CheckEmailPage = () => {
                   className='bg-slate-100 px-2 py-1 focus:outline-primary'
                   value={data.email}
                   onChange={handleOnChange}
+                  disabled={loading}
                   required
                 />
               </div>
 
               <button
-               className='bg-primary text-lg  px-4 py-1 hover:bg-secondary rounded mt-2 font-bold text-white leading-relaxed tracking-wide'
+                type='submit'
+                disabled={loading}
+                className='bg-primary text-lg  px-4 py-1 hover:bg-secondary rounded mt-2 font-bold text-white leading-relaxed tracking-wide disabled:opacity-50'
               >
-                Let's Go
+                {loading ? (
+                  <div className='flex items-center justify-center'>
+                    <Loading />
+                    <span className='ml-2'>Checking...</span>
+                  </div>
+                ) : (
+                  "Let's Go"
+                )}
               </button>
 
           </form>

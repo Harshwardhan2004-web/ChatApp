@@ -1,9 +1,11 @@
 import { configureStore } from '@reduxjs/toolkit'
 import userReducer from './userSlice'
+import videoCallReducer from './slices/videoCallSlice'
 
 export const store = configureStore({
   reducer: {
-    user: userReducer
+    user: userReducer,
+    videoCall: videoCallReducer
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
